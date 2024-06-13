@@ -33,7 +33,7 @@ INSTALL_DEFAULT_CONCEPTS=True
 # value in the docker-compse.yml for the Postgres container.
 PGUSERNAME=postgres
 PGPASSWORD=postgis
-PGDBNAME=$ARCHES_PROJECT
+PGDBNAME=arches_proj
 PGHOST=arches_db
 PGPORT=5432
 ESHOST=arches_elasticsearch

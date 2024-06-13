@@ -35,8 +35,6 @@ RUN python -m venv venv \
 # Make sure we use the virtualenv:
 ENV PATH="/opt/venv/bin:$PATH"
 
-
-
 ## Setting default environment variables
 ARG AFS_GIT_BRANCH
 ARG ARCHES_GIT_BRANCH
@@ -59,14 +57,15 @@ ENV SETTINGS_LOCAL_PATH=${APP_COMP_FOLDER}/settings_local.py
 ENV SETTINGS_UTILS_PATH=${APP_COMP_FOLDER}/settings_utils.py
 ENV CELERY_PATH=${APP_COMP_FOLDER}/celery.py
 ENV URLS_PATH=${APP_COMP_FOLDER}/urls.py
+ENV ARCHES_DATA=${ARCHES_ROOT}/arches_data
 ENV PACKAGE_PATH=${APP_COMP_FOLDER}/package.json
-ENV ARCHES_DATA=${ALL_ARCHES_ROOT}/arches_data
+ENV WHEELS=/wheels
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE 1
 
 
 # Get ready to do some code installation
 RUN apt-get update && apt-get install -y make software-properties-common
-
-
 
 # Install packages required to run Arches
 # Note that the ubuntu/debian package for libgdal1-dev pulls in libgdal1i, which is built
@@ -97,6 +96,49 @@ RUN set -ex \
     && apt-get install -y "wait-for-it" \
     && apt-get install -y nano \
     && apt-get install -y --no-install-recommends $RUN_DEPS
+
+
+
+# ----------------------------------------------
+# Do installs relating to yarn
+# ----------------------------------------------
+
+# Set environment variables
+ENV NODE_MAJOR=18
+
+# Update package lists and install necessary packages
+RUN apt-get update \
+    && apt-get install -y \
+        ca-certificates \
+        curl \
+        gnupg \
+    && mkdir -p /etc/apt/keyrings
+
+# Add nodesource GPG key
+RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+
+# Add nodesource repository
+RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update
+
+# Install Node.js
+RUN apt-get install -y nodejs
+
+# Add yarn GPG key
+RUN curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor | tee /usr/share/keyrings/yarnkey.gpg >/dev/null
+
+# Add yarn repository
+RUN echo "deb [signed-by=/usr/share/keyrings/yarnkey.gpg] https://dl.yarnpkg.com/debian stable main" | tee /etc/apt/sources.list.d/yarn.list \
+    && apt-get update
+
+# Install yarn
+RUN apt-get install -y yarn
+
+# Clean up
+RUN apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+
 
 
 # ----------------------------------------------
@@ -156,7 +198,7 @@ RUN pip install -r arches/install/requirements.txt && pip install -r arches/inst
 RUN pip install .
 
 # Install the Arches application and make an Arches project.
-RUN pip install supervisor && pip install pytz --upgrade && pip install tzdata --upgrade && pip install Redis && pip install gunicorn
+RUN pip install supervisor && pip install pytz --upgrade && pip install tzdata --upgrade && pip install Redis && pip install gunicorn && pip install arches && arches-project create ${ARCHES_PROJECT}
 
 
 WORKDIR ${ALL_ARCHES_ROOT}
@@ -191,16 +233,21 @@ RUN sed -i 's/\r$//g' ${SETTINGS_LOCAL_PATH}
 COPY ./arches/celery.py ${CELERY_PATH}
 RUN sed -i 's/\r$//g' ${CELERY_PATH}
 # copy the urls.py into our new Arches project. This is part of
-# customization for AFS
+# customization for internationalization
+RUN echo "copied urls to ${URLS_PATH}";
 COPY ./arches/urls.py ${URLS_PATH}
 RUN sed -i 's/\r$//g' ${URLS_PATH}
 # Copy customized package information to the new Arches/AFS
 COPY ./arches/package.json ${PACKAGE_PATH}
 
+# Copy customized package until the issue with datatables.net is resolved.
+# COPY ./arches/package.json ${PACKAGE_PATH}
+
 # copy the celery supervisor
 COPY /arches/conf.d/ ${APP_ROOT}/conf.d/
-COPY /arches/afs_plocal-supervisor.conf ${APP_ROOT}/${ARCHES_PROJECT}-supervisor.conf
-RUN chmod -R 700 ${APP_ROOT}/${ARCHES_PROJECT}-supervisor.conf
+RUN chmod -R 700 ${APP_ROOT}/conf.d/
+COPY /arches/arches_proj-supervisor.conf ${APP_ROOT}/arches_proj-supervisor.conf
+RUN chmod -R 700 ${APP_ROOT}/arches_proj-supervisor.conf
 RUN mkdir -p /var/log/supervisor
 RUN mkdir -p /var/log/celery
 

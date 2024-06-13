@@ -48,9 +48,16 @@ CELERY_BROKER_URL = "amqp://{}:{}@arches_rabbitmq:5672".format(
 )
 """
 
-# Cantaloupe configs
-
-CANTALOUPE_HTTP_ENDPOINT = "http://{}:{}".format(get_env_variable("CANTALOUPE_HOST"), get_env_variable("CANTALOUPE_PORT"))
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.redis.RedisCache",
+        "LOCATION": "redis://arches_redis:6379/1",
+    },
+    "user_permission": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "user_permission_cache",
+    },
+}
 
 
 CELERY_BROKER_URL = "redis://@arches_redis:6379/0"
@@ -60,7 +67,7 @@ CELERY_BROKER_URL = "redis://@arches_redis:6379/0"
 #
 # CELERY_BROKER_URL = ""
 
-# CANTALOUPE_HTTP_ENDPOINT = "http://{}:{}".format(get_env_variable("CANTALOUPE_HOST"), get_env_variable("CANTALOUPE_PORT"))
+CANTALOUPE_HTTP_ENDPOINT = "http://{}:{}".format(get_env_variable("CANTALOUPE_HOST"), get_env_variable("CANTALOUPE_PORT"))
 ELASTICSEARCH_HTTP_PORT = get_env_variable("ESPORT")
 ELASTICSEARCH_HOSTS = [{"scheme": "http", "host": get_env_variable("ESHOST"), "port": int(ELASTICSEARCH_HTTP_PORT)}]
 
@@ -69,6 +76,8 @@ if USER_ELASTICSEARCH_PREFIX:
     ELASTICSEARCH_PREFIX = USER_ELASTICSEARCH_PREFIX
 
 ALLOWED_HOSTS = get_env_variable("DOMAIN_NAMES").split() + ['*']
+# Use the first allowed host as a trusted CSRF origin
+CSRF_TRUSTED_ORIGINS = [f"https://{ALLOWED_HOSTS[0]}", f"https://www.{ALLOWED_HOSTS[0]}"]
 
 USER_SECRET_KEY = get_optional_env_variable("DJANGO_SECRET_KEY")
 if USER_SECRET_KEY:
