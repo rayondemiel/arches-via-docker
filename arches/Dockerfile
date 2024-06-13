@@ -125,7 +125,8 @@ RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesourc
 RUN apt-get install -y nodejs
 
 # Add yarn GPG key
-RUN curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor | tee /usr/share/keyrings/yarnkey.gpg >/dev/null
+RUN curl -sL https://dl.yarnpkg.com/debian/pubkey.gpg | gpg --dearmor --batch --yes -o /usr/share/keyrings/yarnkey.gpg
+
 
 # Add yarn repository
 RUN echo "deb [signed-by=/usr/share/keyrings/yarnkey.gpg] https://dl.yarnpkg.com/debian stable main" | tee /etc/apt/sources.list.d/yarn.list \
@@ -157,7 +158,8 @@ RUN apt-get update \
     && mkdir -p /etc/apt/keyrings
 
 # Add nodesource GPG key
-RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+
+RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor --batch --yes -o /etc/apt/keyrings/nodesource.gpg
 
 # Add nodesource repository
 RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list \
@@ -192,19 +194,19 @@ WORKDIR ${ARCHES_REPO}
 RUN echo "git checkout ${ARCHES_GIT_BRANCH}";
 RUN git checkout ${ARCHES_GIT_BRANCH};
 
-
+RUN pip install supervisor && pip install pytz --upgrade && pip install tzdata --upgrade && pip install Redis && pip install gunicorn
 RUN pip install --upgrade pip
 RUN pip install -r arches/install/requirements.txt && pip install -r arches/install/requirements_dev.txt
 RUN pip install .
 
 # Install the Arches application and make an Arches project.
-RUN pip install supervisor && pip install pytz --upgrade && pip install tzdata --upgrade && pip install Redis && pip install gunicorn && pip install arches && arches-project create ${ARCHES_PROJECT}
-
+#RUN pip install supervisor && pip install pytz --upgrade && pip install tzdata --upgrade && pip install Redis && pip install gunicorn && pip install arches && arches-project create ${ARCHES_PROJECT}
 
 WORKDIR ${ALL_ARCHES_ROOT}
 # Try to install the project
 RUN echo "Create a new Arches project: ${ARCHES_PROJECT}";
-RUN python ${ARCHES_REPO}/arches/install/arches-project create ${ARCHES_PROJECT}
+#RUN python ${ARCHES_REPO}/arches/install/arches-project create ${ARCHES_PROJECT}
+RUN arches-project create ${ARCHES_PROJECT}
 RUN mkdir -p ${UPLOADED_FILES_FOLDER}
 
 # Install our desired branch of Arches for Science
